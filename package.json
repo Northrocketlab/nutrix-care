@@ -1,0 +1,10 @@
+{
+  "name": "nutrix-care",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mobile-first Nutrix animal care center prototype",
+  "scripts": {
+    "start": "node serve.cjs",
+    "test": "node check.cjs"
+  }
+}

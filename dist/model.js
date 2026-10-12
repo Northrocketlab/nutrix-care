@@ -1,0 +1,26 @@
+(function(root){
+  const buildings=[1,2,3,4,6];
+  const kennelsFor=building=>buildings.includes(Number(building))?['A','B'].flatMap(row=>Array.from({length:15},(_,i)=>`D${building}-${row}${String(i+1).padStart(2,'0')}`)):[];
+  const kennels=buildings.flatMap(kennelsFor);
+  function bangkokDate(now=new Date()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);}
+  function age(birth,today=bangkokDate()){
+    if(!birth) return 'ไม่ระบุวันเกิด';
+    const b=new Date(birth+'T00:00:00Z'),t=new Date(today+'T00:00:00Z');
+    if(!Number.isFinite(b.getTime())||!Number.isFinite(t.getTime())||b>t)return 'ตรวจสอบวันเกิด';
+    const shifted=n=>{const first=new Date(Date.UTC(b.getUTCFullYear(),b.getUTCMonth()+n,1));const lastDay=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();return new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth(),Math.min(b.getUTCDate(),lastDay)));};
+    let totalMonths=(t.getUTCFullYear()-b.getUTCFullYear())*12+t.getUTCMonth()-b.getUTCMonth();
+    if(shifted(totalMonths)>t)totalMonths--;
+    const days=Math.round((t-shifted(totalMonths))/86400000);
+    return `${Math.floor(totalMonths/12)} ปี ${totalMonths%12} เดือน ${days} วัน`;
+  }
+  function seed(){return {version:1,operator:'',animals:[{id:'DSTF56-17',name:'Sunny',species:'สุนัข',breed:'Shih Tsu',sex:'Female',birth:'2012-08-01',stage:'Senior',kennel:'D1-A01',status:'ยังไม่ประเมิน',symptoms:'',medications:[],notes:[],checks:[],placementExample:true}],tasks:[],events:[]};}
+  function validateAnimal(a,animals,editing=false){
+    if(!a.id.trim()||!a.name.trim())throw Error('กรุณากรอกรหัสและชื่อสัตว์');
+    if(!editing&&animals.some(x=>x.id.toLowerCase()===a.id.trim().toLowerCase()))throw Error('รหัสสัตว์นี้มีอยู่แล้ว');
+    if(a.birth&&(!/^\d{4}-\d{2}-\d{2}$/.test(a.birth)||a.birth>bangkokDate()))throw Error('วันเกิดต้องไม่เป็นวันที่ในอนาคต');
+    if(!kennels.includes(a.kennel))throw Error('กรุณาเลือกกรงในอาคารที่เปิดใช้งาน');
+  }
+  function moveAnimal(a,destination){if(!kennels.includes(destination))throw Error('ไม่พบคอกปลายทาง');if(destination===a.kennel)throw Error('สัตว์อยู่ในคอกนี้แล้ว');const from=a.kennel;a.kennel=destination;a.placementExample=false;return from;}
+  const api={buildings,kennelsFor,kennels,bangkokDate,age,seed,validateAnimal,moveAnimal};
+  root.Care=api;if(typeof module!=='undefined')module.exports=api;
+})(typeof globalThis!=='undefined'?globalThis:this);
