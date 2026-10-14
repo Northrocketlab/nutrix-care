@@ -5,6 +5,6 @@
   "description": "Mobile-first Nutrix animal care center prototype",
   "scripts": {
     "start": "node serve.cjs",
-    "test": "node check.cjs"
+    "test": "node check.cjs && node check-cloud.cjs"
   }
 }

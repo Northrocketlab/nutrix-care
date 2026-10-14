@@ -18,3 +18,5 @@
 @media(max-width:700px){.top-actions .quiet{display:block;font-size:10px}.top-actions{gap:9px}.user-button{gap:5px}.user-avatar{width:28px;height:28px}}
 
 .kennel-aisle-grid.single-row{grid-template-columns:minmax(0,1fr);max-width:420px}
+
+.cloud-login{max-width:440px;margin:25px auto}.cloud-login .field{margin:18px 0}.cloud-login .primary{margin-top:12px}.prototype{flex-wrap:wrap}.text-link svg,.secondary svg{width:17px;height:17px;flex-shrink:0}

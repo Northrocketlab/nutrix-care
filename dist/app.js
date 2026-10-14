@@ -1,8 +1,11 @@
 'use strict';
 const KEY='nutrix-care-prototype-v1';
+const cloud=CareCloud;
+const emptyState=()=>({version:1,operator:'',animals:[],tasks:[],events:[]});
 let storageReadError=false;
 let state;
 try{const saved=localStorage.getItem(KEY);state=saved?JSON.parse(saved):Care.seed();if(state.version!==1||!Array.isArray(state.animals)||!Array.isArray(state.tasks)||!Array.isArray(state.events))throw Error('รูปแบบข้อมูลไม่ถูกต้อง');}catch(e){state=Care.seed();storageReadError=true;}
+if(cloud.enabled){state=emptyState();storageReadError=false;}
 let view='map',selectedMonth=Care.bangkokDate().slice(0,7),query='',statusFilter='ทั้งหมด',toastTimer;
 const dialog=document.getElementById('dialog');
 const $=s=>document.querySelector(s);
@@ -22,12 +25,17 @@ function thaiDate(value,withTime=false){if(!value)return '—';const d=new Date(
 function thaiMonth(v){return new Intl.DateTimeFormat('th-TH',{timeZone:'Asia/Bangkok',month:'long',year:'numeric'}).format(new Date(v+'-01T12:00:00+07:00'));}
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3500);}
 function addEvent(draft,text,operator){draft.events.unshift({id:crypto.randomUUID(),text,operator,time:new Date().toISOString()});}
-function commit(draft){if(storageReadError)throw Error('อ่านข้อมูลเดิมไม่ได้ จึงหยุดการเขียนทับ กรุณาส่งออกข้อมูลและติดต่อผู้ดูแล');try{localStorage.setItem(KEY,JSON.stringify(draft));}catch(e){throw Error('บันทึกไม่ได้ พื้นที่เบราว์เซอร์อาจเต็มหรือไม่อนุญาตให้เก็บข้อมูล');}state=draft;render();}
+async function commit(draft){
+ if(cloud.enabled){const saved=await cloud.write(draft);state=saved;render();return;}
+ if(storageReadError)throw Error('อ่านข้อมูลเดิมไม่ได้ จึงหยุดการเขียนทับ');
+ try{localStorage.setItem(KEY,JSON.stringify(draft));}catch(e){throw Error('บันทึกในเครื่องไม่ได้');}state=draft;render();
+}
 function heading(eyebrow,title,subtitle,action=''){return `<div class="page-heading"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1><p class="subtitle">${subtitle}</p></div>${action}</div>`;}
 function addButton(kennel=''){return `<button class="primary" data-action="add-animal" data-kennel="${esc(kennel)}">${icon('plus')} เพิ่มสัตว์</button>`;}
 function render(){
+ if(cloud.enabled&&!cloud.ready){renderCloudLogin();return;}
   const nav=navs.map(([id,label,i])=>`<a href="#${id}" class="nav-item ${view===id?'active':''}" ${view===id?'aria-current="page"':''}>${icon(i)}<span>${label}</span></a>`).join('');
-  $('#desktop-nav').innerHTML=nav;$('#mobile-nav').innerHTML=nav;$('#page-name').textContent=navs.find(n=>n[0]===view)?.[1]||'ผังคอก';$('#operator-label').textContent=state.operator||'ตั้งชื่อผู้บันทึก';
+  $('#desktop-nav').innerHTML=nav;$('#mobile-nav').innerHTML=nav;$('#page-name').textContent=navs.find(n=>n[0]===view)?.[1]||'ผังคอก';$('#operator-label').textContent=cloud.enabled?cloud.member.name:state.operator||'ตั้งชื่อผู้บันทึก';
   $('#main').innerHTML=({map:renderMap,animals:renderAnimals,tasks:renderTasks,monthly:renderMonthly,history:renderHistory}[view]||renderMap)();
   const legacyAnimals=state.animals.filter(a=>!Care.kennels.includes(a.kennel));
   if(legacyAnimals.length)$('#main').insertAdjacentHTML('afterbegin',`<div class="notice">มีสัตว์ ${legacyAnimals.length} ตัวอยู่ในรหัสกรงเดิมที่ไม่อยู่ในผังใหม่ ข้อมูลและประวัติยังอยู่ครบ กรุณาเปิดทะเบียนสัตว์เพื่อย้ายไปกรงที่ถูกต้อง: ${legacyAnimals.map(a=>esc(a.name)+' ('+esc(a.kennel)+')').join(', ')} <a class="text-link" href="#animals">เปิดทะเบียนสัตว์ →</a></div>`);
@@ -47,9 +55,9 @@ function renderAnimals(){const as=state.animals.filter(a=>(a.name+' '+a.id+' '+a
 function renderTasks(){const pending=state.tasks.filter(t=>!t.done),done=state.tasks.filter(t=>t.done);const taskHTML=t=>`<div class="task ${t.done?'done':''}"><button class="done-btn" data-action="toggle-task" data-id="${esc(t.id)}" aria-label="${t.done?'เปิดงานอีกครั้ง':'ทำงานเสร็จ'}">${t.done?'✓':'○'}</button><div class="row-main"><h3>${esc(t.title)}</h3><div class="row-sub">${esc(findAnimal(t.animalId)?.name||t.animalId)} · ${thaiDate(t.due)} · ${esc(t.assignee||'ยังไม่มอบหมาย')}</div>${t.done?`<div class="row-sub">เสร็จโดย ${esc(t.completedBy)} · ${thaiDate(t.completedAt,true)}</div>`:''}</div>${!t.done&&t.due<Care.bangkokDate()?tag('เลยกำหนด','amber'):''}</div>`;return heading('CARE, ONE TASK AT A TIME','งานดูแล','งานที่ต้องทำ เวลา และผู้รับผิดชอบ',`<button class="primary" data-action="add-task">${icon('plus')} เพิ่มงาน</button>`)+`<div class="notice">รายการยาคือข้อมูลประกอบการดูแล หากต้องติดตามว่าให้ยาครั้งใดแล้ว ให้เพิ่มงานแยกพร้อมเวลาในรายละเอียด</div><div class="section-title"><h2>งานค้าง ${pending.length} งาน</h2></div><section class="card">${pending.sort((a,b)=>a.due.localeCompare(b.due)).map(taskHTML).join('')||'<div class="empty-state"><h3>ยังไม่มีงานค้าง</h3>เพิ่มงานจากหน้านี้หรือจากประวัติสัตว์ได้</div>'}</section>${done.length?`<div class="section-title"><h2>ทำเสร็จแล้ว ${done.length} งาน</h2></div><section class="card">${done.map(taskHTML).join('')}</section>`:''}`;}
 function renderMonthly(){const checked=state.animals.filter(a=>latestCheck(a,selectedMonth)).length;return heading('SMALL CHECKS, BETTER CARE','ตรวจสุขอนามัยรายเดือน','บันทึกผลจริงของแต่ละตัว และเก็บย้อนหลังทุกเดือน')+`<div class="section-title"><div><h2>${thaiMonth(selectedMonth)}</h2><p class="subtitle">ตรวจแล้ว ${checked} / ${state.animals.length} ตัว</p></div><label class="month-control"><input type="month" id="check-month" value="${selectedMonth}" max="${currentMonth()}" aria-label="เดือนที่ตรวจ"></label></div><section class="card">${state.animals.map(a=>{const c=latestCheck(a,selectedMonth);return `<div class="monthly-item"><div class="avatar">${esc(a.name.slice(0,1))}</div><div class="row-main"><h3>${esc(a.name)}</h3><div class="row-sub">${esc(a.id)} · ${esc(a.kennel)}</div>${c?`<div class="row-sub">${esc(c.operator)} · ${thaiDate(c.time,true)}</div>`:''}</div>${c?tag('ตรวจแล้ว'):tag('รอตรวจ','amber')}<div class="checks">${c?[['ขน',c.coat],['เล็บ',c.nails],['หู',c.ears]].map(([l,v])=>`<span class="check-label">${l}: ${esc(v)}</span>`).join(''):'<span class="row-sub">ยังไม่มีผลตรวจของเดือนนี้</span>'}</div><button class="secondary" data-action="monthly-check" data-id="${esc(a.id)}" data-month="${selectedMonth}">${c?'ดู / บันทึกเพิ่ม':'บันทึกผลตรวจ'}</button></div>`;}).join('')||'<div class="empty-state">ยังไม่มีสัตว์ในทะเบียน</div>'}</section>`;}
 function eventHTML(e){return `<div class="event"><span class="event-bullet"></span><div><p>${esc(e.text)}</p><small>${esc(e.operator)} · ${thaiDate(e.time,true)}</small></div></div>`;}
-function renderHistory(){return heading('A CLEAR RECORD OF CARE','บันทึกการดูแล','ประวัติการเพิ่มสัตว์ ย้ายคอก และอัปเดตข้อมูล พร้อมชื่อผู้บันทึก')+`<div class="notice">ชื่อผู้บันทึกในต้นแบบเป็นชื่อที่กรอกเอง ยังไม่ได้ยืนยันตัวตนด้วยบัญชีผู้ใช้</div><section class="card panel-pad">${state.events.map(eventHTML).join('')||'<div class="empty-state"><h3>เริ่มบันทึกเมื่อคุณพร้อม</h3>กิจกรรมที่บันทึกจะปรากฏที่นี่</div>'}</section>`;}
+function renderHistory(){return heading('A CLEAR RECORD OF CARE','บันทึกการดูแล','ประวัติการเพิ่มสัตว์ ย้ายคอก และอัปเดตข้อมูล พร้อมชื่อผู้บันทึก')+`<div class="notice">${cloud.enabled?'ข้อมูลใหม่ผูกกับบัญชีผู้บันทึกในฐานข้อมูล ส่วนประวัตินำเข้าคงชื่อเดิมไว้':'ชื่อผู้บันทึกในต้นแบบเป็นชื่อที่กรอกเอง ยังไม่ได้ยืนยันตัวตนด้วยบัญชีผู้ใช้'}</div><section class="card panel-pad">${state.events.map(eventHTML).join('')||'<div class="empty-state"><h3>เริ่มบันทึกเมื่อคุณพร้อม</h3>กิจกรรมที่บันทึกจะปรากฏที่นี่</div>'}</section>`;}
 function openModal(title,body,actions='',subtitle=''){const wasOpen=dialog.open;$('#dialog-content').innerHTML=`<div class="modal-head"><div><h2>${esc(title)}</h2>${subtitle?`<p class="subtitle">${esc(subtitle)}</p>`:''}</div><button class="close" data-action="close" aria-label="ปิดหน้าต่าง">×</button></div>${body}${actions}`;if(!wasOpen)dialog.showModal();else dialog.scrollTop=0;}
-function formOpen(title,type,fields,options={}){openModal(title,`<form data-form="${type}" ${options.id?`data-id="${esc(options.id)}"`:''}><div class="modal-body"><div class="error" role="alert"></div>${options.intro||''}<div class="form-grid">${fields}<label class="field wide">ผู้บันทึก<input name="operator" required maxlength="80" value="${esc(state.operator)}" placeholder="ชื่อของคุณ"></label></div>${options.note?`<p class="form-note">${options.note}</p>`:''}</div><div class="modal-actions"><button type="button" class="secondary" data-action="${options.back?'profile':'close'}" ${options.back?`data-id="${esc(options.back)}"`:''}>ยกเลิก</button><button type="submit" class="primary">${options.submit||'บันทึก'}</button></div></form>`);}
+function formOpen(title,type,fields,options={}){openModal(title,`<form data-form="${type}" ${options.id?`data-id="${esc(options.id)}"`:''}><div class="modal-body"><div class="error" role="alert"></div>${options.intro||''}<div class="form-grid">${fields}<label class="field wide">ผู้บันทึก<input name="operator" ${cloud.enabled?'readonly':''} required maxlength="80" value="${esc(state.operator)}" placeholder="ชื่อของคุณ"></label></div>${options.note?`<p class="form-note">${options.note}</p>`:''}</div><div class="modal-actions"><button type="button" class="secondary" data-action="${options.back?'profile':'close'}" ${options.back?`data-id="${esc(options.back)}"`:''}>ยกเลิก</button><button type="submit" class="primary">${options.submit||'บันทึก'}</button></div></form>`);}
 const input=(label,name,value='',type='text',attrs='',wide=false)=>`<label class="field ${wide?'wide':''}">${label}<input type="${type}" name="${name}" value="${esc(value)}" ${attrs}></label>`;
 const select=(label,name,values,value='',required=true,wide=false)=>`<label class="field ${wide?'wide':''}">${label}<select name="${name}" ${required?'required':''}>${values.map(v=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(v)||'เลือกผลตรวจ'}</option>`).join('')}</select></label>`;
 const textarea=(label,name,value='',required=false)=>`<label class="field wide">${label}<textarea name="${name}" ${required?'required':''} maxlength="4000">${esc(value)}</textarea></label>`;
@@ -66,8 +74,9 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-action]')
  const actions={close:()=>dialog.close(),'add-animal':()=>addAnimal(kennel),kennel:()=>openKennel(code),profile:()=>profile(id),move:()=>moveForm(id),health:()=>healthForm(id),'add-med':()=>medForm(id),'monthly-check':()=>checkForm(id,month),'add-task':()=>taskForm(id),'add-note':()=>formOpen('บันทึกข้อสังเกต · '+findAnimal(id).name,'note',textarea('ข้อสังเกต *','text','',true),{id,back:id}),'stop-med':()=>formOpen('บันทึกหยุดใช้ยา','stop-med',input('รายการยา','med',med,'hidden')+textarea('เหตุผล / หมายเหตุ','reason','',true),{id,back:id,intro:`<div class="notice">บันทึกเฉพาะการหยุดใช้ที่ได้รับแจ้งแล้ว ระบบจะเก็บประวัติรายการยาไว้</div>`}),'toggle-task':()=>{const t=state.tasks.find(t=>t.id===id);formOpen(t.done?'เปิดงานอีกครั้ง':'ยืนยันทำงานเสร็จ','toggle-task','',{id,intro:`<div class="profile-box" style="margin-bottom:18px">${esc(t.title)}<br>${esc(findAnimal(t.animalId)?.name||t.animalId)}</div>`});}};
  actions[action]?.();
 });
-document.addEventListener('submit',e=>{const form=e.target.closest('form[data-form]');if(!form)return;e.preventDefault();if(!form.reportValidity())return;const values=Object.fromEntries(new FormData(form));const data=Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==='string'?v.trim():v]));const type=form.dataset.form,id=form.dataset.id;
- try{if(!data.operator)throw Error('กรุณาระบุชื่อผู้บันทึก');const d=structuredClone(state);d.operator=data.operator;const a=d.animals.find(x=>x.id===id);const time=new Date().toISOString();let resultId=id,msg='บันทึกเรียบร้อย';
+document.addEventListener('submit',async e=>{const form=e.target.closest('form[data-form]');if(!form)return;e.preventDefault();if(!form.reportValidity())return;const values=Object.fromEntries(new FormData(form));const data=Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==='string'?v.trim():v]));const type=form.dataset.form,id=form.dataset.id;
+ const submit=form.querySelector('[type=submit]');if(submit?.disabled)return;if(submit)submit.disabled=true;
+ try{if(cloud.enabled)data.operator=cloud.member.name;if(!data.operator)throw Error('กรุณาระบุชื่อผู้บันทึก');const d=structuredClone(state);d.operator=data.operator;const a=d.animals.find(x=>x.id===id);const time=new Date().toISOString();let resultId=id,msg='บันทึกเรียบร้อย';
  if(type==='animal'){Care.validateAnimal(data,d.animals);const created={id:data.id,name:data.name,species:'สุนัข',breed:data.breed,sex:data.sex,birth:data.birth,stage:data.stage,kennel:data.kennel,status:data.status,symptoms:'',medications:[],checks:[],notes:[],placementExample:false};d.animals.push(created);resultId=created.id;addEvent(d,`เพิ่ม ${created.name} (${created.id}) เข้าคอก ${created.kennel}`,data.operator);}
  else if(type==='move'){const from=Care.moveAnimal(a,data.kennel);addEvent(d,`ย้าย ${a.name} จาก ${from} ไป ${a.kennel}${data.note?' · '+data.note:''}`,data.operator);msg='ย้ายคอกเรียบร้อย ประวัติยังอยู่ครบ';}
  else if(type==='health'){if(!statuses.includes(data.status))throw Error('กรุณาเลือกสถานะ');a.status=data.status;a.symptoms=data.symptoms;addEvent(d,`อัปเดตสุขภาพ ${a.name}: ${a.status} · อาการที่ต้องสังเกต: ${a.symptoms||'ไม่ได้ระบุ'}`,data.operator);}
@@ -79,14 +88,54 @@ document.addEventListener('submit',e=>{const form=e.target.closest('form[data-fo
  else if(type==='toggle-task'){const t=d.tasks.find(t=>t.id===id);if(!t)throw Error('ไม่พบงานนี้');t.done=!t.done;t.completedAt=t.done?time:null;t.completedBy=t.done?data.operator:null;addEvent(d,`${t.done?'ทำงานเสร็จ':'เปิดงานอีกครั้ง'}: ${t.title}`,data.operator);resultId=null;}
  else if(type==='operator'){d.operator=data.operator;resultId=null;}
  else throw Error('ไม่พบแบบฟอร์ม');
- commit(d);if(resultId)profile(resultId);else dialog.close();toast(msg);
+ await commit(d);if(resultId)profile(resultId);else dialog.close();toast(msg);
  }catch(err){const box=form.querySelector('.error');if(box){box.textContent=err.message;box.scrollIntoView({block:'nearest'});}else toast(err.message);}
+ finally{if(submit)submit.disabled=false;}
 });
 document.addEventListener('input',e=>{if(e.target.id==='animal-search'){query=e.target.value;const start=e.target.selectionStart;render();$('#animal-search').focus();$('#animal-search').setSelectionRange(start,start);}});
 document.addEventListener('change',e=>{if(e.target.id==='status-filter'){statusFilter=e.target.value;render();}if(e.target.id==='check-month'){if(e.target.value&&e.target.value<=currentMonth()){selectedMonth=e.target.value;render();}else{e.target.value=selectedMonth;toast('เลือกเดือนไม่เกินเดือนปัจจุบัน');}}});
-$('#operator').addEventListener('click',()=>formOpen('ชื่อผู้บันทึก','operator','',{note:'ใช้ชื่อเดียวกันทุกครั้งเพื่ออ่านประวัติได้ง่าย ชื่อนี้ยังไม่ใช่การเข้าสู่ระบบ'}));
+$('#operator').addEventListener('click',()=>{if(cloud.enabled){openCloudAccount();return;}formOpen('ชื่อผู้บันทึก','operator','',{note:'ชื่อนี้ยังไม่ใช่การเข้าสู่ระบบ'});});
 $('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),...state},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`nutrix-care-${Care.bangkokDate()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('ส่งออกข้อมูลในเครื่องนี้แล้ว');});
 window.addEventListener('hashchange',()=>{view=navs.some(n=>n[0]===location.hash.slice(1))?location.hash.slice(1):'map';if(dialog.open)dialog.close();render();window.scrollTo(0,0);});
-window.addEventListener('storage',e=>{if(e.key===KEY&&e.newValue){try{const next=JSON.parse(e.newValue);if(next.version===1&&Array.isArray(next.animals)&&Array.isArray(next.tasks)&&Array.isArray(next.events)){state=next;render();if(dialog.open)dialog.close();toast('ข้อมูลอัปเดตจากแท็บอื่นในเบราว์เซอร์นี้');}}catch{toast('ไม่สามารถอ่านการอัปเดตจากแท็บอื่นได้');}}});
+window.addEventListener('storage',e=>{if(!cloud.enabled&&e.key===KEY&&e.newValue){try{const next=JSON.parse(e.newValue);if(next.version===1&&Array.isArray(next.animals)&&Array.isArray(next.tasks)&&Array.isArray(next.events)){state=next;render();if(dialog.open)dialog.close();toast('ข้อมูลอัปเดตจากแท็บอื่นในเบราว์เซอร์นี้');}}catch{toast('ไม่สามารถอ่านการอัปเดตจากแท็บอื่นได้');}}});
 dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
 view=navs.some(n=>n[0]===location.hash.slice(1))?location.hash.slice(1):'map';render();
+
+
+function renderCloudLogin(){
+ $('#desktop-nav').innerHTML='';$('#mobile-nav').innerHTML='';$('#page-name').textContent='เข้าสู่ระบบ';$('#operator-label').textContent='เข้าสู่ระบบ';
+ $('#main').innerHTML=`<section class="card panel-pad cloud-login"><h1>Nutrix Care</h1><p class="subtitle">เข้าสู่ระบบเพื่อใช้ข้อมูลร่วมกันในศูนย์</p><form id="cloud-login"><div class="error" role="alert">${esc(cloud.error)}</div><label class="field">อีเมล<input name="email" type="email" autocomplete="username" required></label><label class="field">รหัสผ่าน<input name="password" type="password" autocomplete="current-password" required></label><button class="primary full" type="submit">เข้าสู่ระบบ</button></form><p class="side-copy">ใช้บัญชีที่ผู้ดูแลสร้างให้ หากยังไม่มีบัญชีหรือจำรหัสผ่านไม่ได้ กรุณาติดต่อผู้ดูแล</p><button class="text-link" id="export-legacy">ส่งออกข้อมูลเดิมในเครื่องนี้</button></section>`;
+}
+function cloudStatus(){
+ if(!cloud.enabled)return;
+ const banner=document.querySelector('.prototype');banner.innerHTML=`<span class="pill">ฐานข้อมูลกลาง</span><span>${cloud.busy?'กำลังบันทึก…':cloud.error?esc(cloud.error):cloud.ready?'เชื่อมต่อแล้ว · ตรวจข้อมูลใหม่ทุก 10 วินาที':'กรุณาเข้าสู่ระบบ'}</span>${cloud.ready?'<button class="text-link" data-cloud="refresh">อัปเดตข้อมูล</button>':''}`;
+ if(!cloud.ready)renderCloudLogin();
+}
+function downloadState(data,prefix){const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),...data},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=prefix+'-'+Care.bangkokDate()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function exportLegacy(){try{const raw=localStorage.getItem(KEY);if(!raw){toast('ไม่มีข้อมูลเดิมในเบราว์เซอร์นี้');return;}downloadState(JSON.parse(raw),'nutrix-care-local-backup');}catch{toast('อ่านข้อมูลเดิมไม่ได้');}}
+function openCloudAccount(){if(!cloud.ready)return;openModal('บัญชีผู้ใช้งาน',`<div class="modal-body"><p>${esc(cloud.member.name)} · ${esc(cloud.member.email)}</p><p class="side-copy">ข้อมูลบันทึกลงฐานข้อมูลกลาง ไม่เขียนทับข้อมูลต้นแบบเดิมในเครื่องนี้</p>${cloud.member.role==='admin'?'<label class="field">นำเข้าข้อมูล JSON เดิม (ใช้ได้เมื่อฐานข้อมูลยังว่าง)<input type="file" id="cloud-import" accept=".json,application/json"></label><p class="side-copy">ไม่ย้ายข้อมูลอัตโนมัติ กรุณาตรวจข้อมูลตัวอย่างและรหัสกรงก่อนนำเข้า</p>':''}<div id="import-preview"></div><div class="error" id="cloud-account-error" role="alert"></div><button class="secondary" data-cloud="logout">ออกจากระบบ</button></div>`);}
+let pendingImport=null;
+document.addEventListener('submit',async e=>{if(e.target.id!=='cloud-login')return;e.preventDefault();const form=e.target,button=form.querySelector('button');if(button.disabled)return;button.disabled=true;const values=new FormData(form);try{await cloud.signIn(String(values.get('email')).trim(),String(values.get('password')));form.reset();render();cloudStatus();}catch(err){form.querySelector('.error').textContent=err.message;}finally{button.disabled=false;}});
+document.addEventListener('click',async e=>{
+ if(e.target.closest('#export-legacy')){exportLegacy();return;}
+ const action=e.target.closest('[data-cloud]')?.dataset.cloud;if(!action)return;
+ try{
+  if(action==='logout'){await cloud.signOut();dialog.close();render();}
+  if(action==='refresh'){if(dialog.open){toast('ปิดหน้าต่างที่กำลังกรอกก่อนอัปเดตข้อมูล');return;}await cloud.read(true);toast('อัปเดตข้อมูลแล้ว');}
+  if(action==='import'&&pendingImport){if(cloud.member.role!=='admin'||state.animals.length||state.tasks.length||state.events.length)throw Error('นำเข้าได้เฉพาะผู้ดูแลและฐานข้อมูลว่าง');await commit(pendingImport);pendingImport=null;dialog.close();toast('นำเข้าฐานข้อมูลกลางสำเร็จ');}
+ }catch(err){const box=$('#cloud-account-error');if(box)box.textContent=cloud.message(err);else toast(cloud.message(err));}
+});
+document.addEventListener('change',async e=>{
+ if(e.target.id!=='cloud-import')return;pendingImport=null;$('#import-preview').textContent='';
+ try{
+  if(state.animals.length||state.tasks.length||state.events.length)throw Error('ฐานข้อมูลมีข้อมูลแล้ว จึงไม่อนุญาตให้นำเข้าทับ');
+  const file=e.target.files[0];if(!file)return;if(file.size>10000000)throw Error('ไฟล์ใหญ่เกิน 10 MB');
+  const d=JSON.parse(await file.text());if(d.version!==1||!Array.isArray(d.animals)||!Array.isArray(d.tasks)||!Array.isArray(d.events))throw Error('รูปแบบไฟล์ไม่ถูกต้อง');
+  const ids=[];for(const a of d.animals){Care.validateAnimal(a,ids);if(!['medications','notes','checks'].every(k=>Array.isArray(a[k])))throw Error('ข้อมูลประวัติสัตว์ไม่ครบ');ids.push(a);}
+  if(d.animals.some(a=>a.placementExample))throw Error('ยังมีสัตว์ตำแหน่งตัวอย่าง กรุณายืนยันตำแหน่งในต้นแบบโดยย้ายคอกก่อนส่งออกใหม่');
+  if(d.tasks.some(t=>!ids.some(a=>a.id===t.animalId)))throw Error('มีงานที่ไม่พบรหัสสัตว์');
+  pendingImport={version:1,operator:cloud.member.name,animals:d.animals,tasks:d.tasks,events:d.events};
+  $('#import-preview').innerHTML=`<div class="notice">พบสัตว์ ${d.animals.length} ตัว งาน ${d.tasks.length} รายการ ประวัติ ${d.events.length} รายการ</div><button class="primary" data-cloud="import">ยืนยันนำเข้าข้อมูลชุดนี้</button>`;
+ }catch(err){$('#cloud-account-error').textContent=err.message;}
+});
+if(cloud.enabled){cloudStatus();cloud.init({onChange:next=>{if(!next){if(dialog.open)dialog.close();pendingImport=null;}state=next||emptyState();render();},onStatus:cloudStatus,canRefresh:()=>!dialog.open&&!cloud.busy});}
