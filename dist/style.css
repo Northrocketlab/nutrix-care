@@ -16,3 +16,5 @@
 .kennel-aisle span{writing-mode:vertical-rl;text-orientation:upright;letter-spacing:3px;font-size:11px;position:sticky;top:100px}
 @media(max-width:700px){.kennel-aisle-grid{grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr);gap:8px}.kennel-row .kennel{min-height:90px;padding:10px 8px}.kennel-row .building-label{font-size:10px}.kennel-aisle span{font-size:10px;top:80px}.kennel-row .kennel-small{white-space:normal;overflow-wrap:anywhere}}
 @media(max-width:700px){.top-actions .quiet{display:block;font-size:10px}.top-actions{gap:9px}.user-button{gap:5px}.user-avatar{width:28px;height:28px}}
+
+.kennel-aisle-grid.single-row{grid-template-columns:minmax(0,1fr);max-width:420px}
