@@ -22,6 +22,15 @@
     if(!kennels.includes(a.kennel))throw Error('กรุณาเลือกกรงในอาคารที่เปิดใช้งาน');
   }
   function moveAnimal(a,destination){if(!kennels.includes(destination))throw Error('ไม่พบคอกปลายทาง');if(destination===a.kennel)throw Error('สัตว์อยู่ในคอกนี้แล้ว');const from=a.kennel;a.kennel=destination;a.placementExample=false;return from;}
-  const api={buildings,layoutFor,kennelsFor,kennels,bangkokDate,age,seed,validateAnimal,moveAnimal};
+  function hasMonthlyIssue(check){return Boolean(check&&((check.coat&&check.coat!=='ปกติ')||(check.nails&&check.nails!=='เหมาะสม')||(check.ears&&check.ears!=='สะอาด')));}
+  function addMonthlyCheck(animal,data,{operator,time,maxMonth=bangkokDate().slice(0,7)}){
+    const choices={coat:['ปกติ','พันกัน / ต้องแปรง','สกปรก / ต้องทำความสะอาด','มีข้อสังเกตอื่น'],nails:['เหมาะสม','ยาว / ต้องตัด','มีข้อสังเกตอื่น'],ears:['สะอาด','ต้องทำความสะอาด','มีข้อสังเกตอื่น']};
+    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(data.month)||data.month>maxMonth)throw Error('เดือนไม่ถูกต้องหรือเป็นเดือนในอนาคต');
+    if(Object.entries(choices).some(([key,allowed])=>!allowed.includes(data[key])))throw Error('กรุณาเลือกผลขน เล็บ และหูให้ครบ');
+    const previous=[...animal.checks].reverse().find(c=>c.month===data.month);
+    if(!hasMonthlyIssue(data)&&!hasMonthlyIssue(previous))throw Error('บันทึกเฉพาะตัวที่พบปัญหา กรุณาเลือกปัญหาอย่างน้อยหนึ่งรายการ');
+    animal.checks.push({month:data.month,coat:data.coat,nails:data.nails,ears:data.ears,note:data.note||'',operator,time,problemOnly:true});
+  }
+  const api={buildings,layoutFor,kennelsFor,kennels,bangkokDate,age,seed,validateAnimal,moveAnimal,hasMonthlyIssue,addMonthlyCheck};
   root.Care=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
