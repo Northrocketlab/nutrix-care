@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');const C=require('./dist/model.js');
+const a=C.seed().animals[0],normal={month:'2026-10',coat:'ปกติ',nails:'เหมาะสม',ears:'สะอาด',note:''},opts={operator:'test',time:'2026-10-17T10:00:00Z',maxMonth:'2026-10'};
+assert.equal(C.hasMonthlyIssue(undefined),false);
+assert.throws(()=>C.addMonthlyCheck(a,normal,opts),/เฉพาะตัวที่พบปัญหา/);assert.equal(a.checks.length,0);
+C.addMonthlyCheck(a,{...normal,ears:'ต้องทำความสะอาด'},opts);assert.equal(a.checks.length,1);assert.equal(C.hasMonthlyIssue(a.checks[0]),true);
+const first=JSON.stringify(a.checks[0]);C.addMonthlyCheck(a,normal,opts);assert.equal(a.checks.length,2);assert.equal(JSON.stringify(a.checks[0]),first);assert.equal(C.hasMonthlyIssue(a.checks[1]),false);
+assert.throws(()=>C.addMonthlyCheck(a,normal,opts),/เฉพาะตัวที่พบปัญหา/);
+assert.throws(()=>C.addMonthlyCheck(a,{...normal,month:'2026-11',nails:'ยาว / ต้องตัด'},opts),/อนาคต/);
+assert.throws(()=>C.addMonthlyCheck(a,{...normal,month:'2026-13'},opts),/เดือนไม่ถูกต้อง/);
+assert.throws(()=>C.addMonthlyCheck(a,{...normal,ears:'typo'},opts),/เลือกผล/);
+C.addMonthlyCheck(a,{...normal,month:'2026-09',coat:'มีข้อสังเกตอื่น'},opts);assert.equal(a.checks.length,3);
+const other=C.seed().animals[0];assert.equal(other.checks.length,0);
+console.log('PASS: issue-only recording, explicit resolution, history retention, per-month validation and no changes to unrecorded animals.');
