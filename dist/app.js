@@ -96,6 +96,22 @@ document.addEventListener('input',e=>{if(e.target.id==='animal-search'){query=e.
 document.addEventListener('change',e=>{if(e.target.id==='status-filter'){statusFilter=e.target.value;render();}if(e.target.id==='check-month'){if(e.target.value&&e.target.value<=currentMonth()){selectedMonth=e.target.value;render();}else{e.target.value=selectedMonth;toast('เลือกเดือนไม่เกินเดือนปัจจุบัน');}}});
 $('#operator').addEventListener('click',()=>{if(cloud.enabled){openCloudAccount();return;}formOpen('ชื่อผู้บันทึก','operator','',{note:'ชื่อนี้ยังไม่ใช่การเข้าสู่ระบบ'});});
 $('#export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),...state},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`nutrix-care-${Care.bangkokDate()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('ส่งออกข้อมูลในเครื่องนี้แล้ว');});
+$('#export-excel').addEventListener('click',async()=>{
+ const button=$('#export-excel');if(button.disabled)return;
+ if(cloud.enabled&&!cloud.ready){toast('กรุณาเข้าสู่ระบบก่อนส่งออกรายงาน');return;}
+ if(cloud.busy){toast('รอให้บันทึกเสร็จก่อนส่งออกรายงาน');return;}
+ if(dialog.open){toast('ปิดหน้าต่างที่กำลังกรอกก่อนส่งออกรายงาน');return;}
+ button.disabled=true;button.textContent='กำลังส่งออก…';
+ try{
+  if(cloud.enabled)await cloud.read(true);
+  if(cloud.enabled&&!cloud.ready)throw Error('กรุณาเข้าสู่ระบบอีกครั้ง');
+  const snapshot=structuredClone(state),now=new Date();
+  const bytes=CareReport.build(snapshot,{now,revision:cloud.enabled?cloud.revision:null,source:cloud.enabled?'ฐานข้อมูลกลาง Supabase':'ข้อมูลในเบราว์เซอร์เครื่องนี้',operator:cloud.enabled?cloud.member.name:state.operator});
+  const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download=`nutrix-care-report-${Care.bangkokDate(now)}.xlsx`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);toast('ส่งออกรายงาน Excel แล้ว');
+ }catch(err){toast('ส่งออกไม่ได้: '+(cloud.enabled?cloud.message(err):err.message));}
+ finally{button.disabled=false;button.textContent='รายงาน Excel';}
+});
 window.addEventListener('hashchange',()=>{view=navs.some(n=>n[0]===location.hash.slice(1))?location.hash.slice(1):'map';if(dialog.open)dialog.close();render();window.scrollTo(0,0);});
 window.addEventListener('storage',e=>{if(!cloud.enabled&&e.key===KEY&&e.newValue){try{const next=JSON.parse(e.newValue);if(next.version===1&&Array.isArray(next.animals)&&Array.isArray(next.tasks)&&Array.isArray(next.events)){state=next;render();if(dialog.open)dialog.close();toast('ข้อมูลอัปเดตจากแท็บอื่นในเบราว์เซอร์นี้');}}catch{toast('ไม่สามารถอ่านการอัปเดตจากแท็บอื่นได้');}}});
 dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
