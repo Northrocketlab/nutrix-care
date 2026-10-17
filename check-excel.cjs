@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+global.Care=require('./dist/model.js');const report=require('./dist/excel-report.js');
+const state=Care.seed(),a=state.animals[0];a.id='00017';a.name='=SUM(1,2)';a.symptoms='ต้องดูแล & สังเกต <ต่อ>\nบรรทัดใหม่';
+a.medications=[{name:'รายการยาทดสอบ',dose:'ตามคำสั่ง',frequency:'ตามเวลา',active:true},{name:'ยาเดิม',active:false,stopReason:'เหตุผลทดสอบ'}];
+a.checks=[{month:'2026-09',coat:'ปกติ',nails:'ยาว',ears:'สะอาด',note:'เก็บย้อนหลัง'}];a.notes=[{text:'โน้ตทดสอบ'}];
+state.tasks=[{id:'TASK-001',animalId:'00017',title:'ทดสอบงาน',done:false}];state.events=[{id:'EVENT-001',text:'ทดสอบประวัติ',operator:'ทดสอบ'}];
+const before=JSON.stringify(state),options={now:new Date('2026-10-16T18:00:00Z'),revision:12,operator:'ผู้ทดสอบ'};
+const tables=report.tables(state,options);assert.equal(tables.length,7);assert.equal(tables[2][1].length,3);assert.equal(tables[3][1].length,2);
+const bytes=report.build(state,options);assert.equal(JSON.stringify(state),before);assert.equal(bytes[0],80);assert.equal(bytes[1],75);
+fs.mkdirSync('../../work/excel-report-test',{recursive:true});fs.writeFileSync('../../work/excel-report-test/report.xlsx',bytes);
+fs.writeFileSync('../../work/excel-report-test/empty.xlsx',report.build({version:1,animals:[],tasks:[],events:[]},options));
+console.log('PASS: 7 sheets, active/stopped medications, historical checks, empty data and no source mutation.');
