@@ -9,4 +9,5 @@ const tables=report.tables(state,options);assert.equal(tables.length,7);assert.e
 const bytes=report.build(state,options);assert.equal(JSON.stringify(state),before);assert.equal(bytes[0],80);assert.equal(bytes[1],75);
 fs.mkdirSync('../../work/excel-report-test',{recursive:true});fs.writeFileSync('../../work/excel-report-test/report.xlsx',bytes);
 fs.writeFileSync('../../work/excel-report-test/empty.xlsx',report.build({version:1,animals:[],tasks:[],events:[]},options));
+const edited=structuredClone(state);edited.animals[0].registrationCode='NEW-17';const updated=report.tables(edited,options);for(const sheet of [1,2,3,5])assert.equal(updated[sheet][1][1][0],'NEW-17');assert.equal(updated[4][1][1][1],'NEW-17');edited.animals[0].registrationCode='';assert.equal(report.tables(edited,options)[1][1][1][0],'');
 console.log('PASS: 7 sheets, active/stopped medications, historical checks, empty data and no source mutation.');

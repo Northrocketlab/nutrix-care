@@ -22,20 +22,28 @@
     if(a.birth&&(!/^\d{4}-\d{2}-\d{2}$/.test(a.birth)||a.birth>bangkokDate()))throw Error('วันเกิดต้องไม่เป็นวันที่ในอนาคต');
     if(!editing&&!kennels.includes(a.kennel))throw Error('กรุณาเลือกกรงในอาคารที่เปิดใช้งาน');
   }
+  function animalCode(animal){return Object.hasOwn(animal,'registrationCode')?String(animal.registrationCode||''):animal.id?.startsWith('AUTO-')?'':animal.id||'';}
   function createAnimal(data,animals){
-    const id=data.id?.trim()||'AUTO-'+root.crypto.randomUUID();
+    const code=data.id?.trim()||'';
+    if(code&&animals.some(a=>animalCode(a).trim().toLowerCase()===code.toLowerCase()))throw Error('รหัสสัตว์นี้มีอยู่แล้ว');
+    const id=code||'AUTO-'+root.crypto.randomUUID();
     const animal={id,name:data.name?.trim()||'',species:'สุนัข',breed:data.breed||'',sex:data.sex||'ไม่ระบุ',birth:data.birth||'',stage:data.stage||'ไม่ระบุ',kennel:data.kennel,status:data.status||'ยังไม่ประเมิน',symptoms:'',medications:[],checks:[],notes:[],placementExample:false};
     validateAnimal(animal,animals);
     return animal;
   }
-  function updateAnimalProfile(animal,data){
+  function updateAnimalProfile(animal,data,animals=[]){
     if(!animal)throw Error('ไม่พบสัตว์ที่ต้องการแก้ไข');
-    const labels={name:'ชื่อ',breed:'พันธุ์',sex:'เพศ',birth:'วันเกิด',stage:'ช่วงวัย'};
+    const labels={name:'ชื่อ',registrationCode:'รหัสสัตว์',breed:'พันธุ์',sex:'เพศ',birth:'วันเกิด',stage:'ช่วงวัย'};
     const next={...animal};
     for(const key of Object.keys(labels))if(Object.hasOwn(data,key))next[key]=String(data[key]??'').trim();
     validateAnimal(next,[],true);
+    if(Object.hasOwn(data,'registrationCode')){
+      if(next.registrationCode.length>60)throw Error('รหัสสัตว์ต้องไม่เกิน 60 ตัวอักษร');
+      if(next.registrationCode&&animals.some(a=>a.id!==animal.id&&animalCode(a).trim().toLowerCase()===next.registrationCode.toLowerCase()))throw Error('รหัสสัตว์นี้มีอยู่แล้ว');
+    }
     if(next.name.length>100||(next.breed||'').length>100)throw Error('ชื่อและพันธุ์ต้องไม่เกิน 100 ตัวอักษร');
-    const changes=Object.keys(labels).filter(key=>(animal[key]||'')!==(next[key]||'')).map(key=>({field:labels[key],before:animal[key]||'',after:next[key]||''}));
+    const value=(a,key)=>key==='registrationCode'?animalCode(a):a[key]||'';
+    const changes=Object.keys(labels).filter(key=>value(animal,key)!==value(next,key)).map(key=>({field:labels[key],before:value(animal,key),after:value(next,key)}));
     // Update basic details only; IDs, placement, medications and history stay attached.
     for(const key of Object.keys(labels))if(Object.hasOwn(data,key))animal[key]=next[key];
     return changes;
@@ -50,6 +58,6 @@
     if(!hasMonthlyIssue(data)&&!hasMonthlyIssue(previous))throw Error('บันทึกเฉพาะตัวที่พบปัญหา กรุณาเลือกปัญหาอย่างน้อยหนึ่งรายการ');
     animal.checks.push({month:data.month,coat:data.coat,nails:data.nails,ears:data.ears,note:data.note||'',operator,time,problemOnly:true});
   }
-  const api={buildings,layoutFor,kennelsFor,kennels,bangkokDate,age,seed,validateAnimal,createAnimal,updateAnimalProfile,moveAnimal,hasMonthlyIssue,addMonthlyCheck};
+  const api={buildings,layoutFor,kennelsFor,kennels,bangkokDate,age,seed,validateAnimal,animalCode,createAnimal,updateAnimalProfile,moveAnimal,hasMonthlyIssue,addMonthlyCheck};
   root.Care=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
