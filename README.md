@@ -65,3 +65,13 @@ GitHub เก็บ source code และ workflow เผยแพร่ไป G
 หากข้อมูลเดิมอยู่ในกรง A15/B15 ของคอก 1 หรือ 3 ระบบเก็บข้อมูลไว้และแจ้งให้ย้ายไปกรงที่ถูกต้อง ไม่ลบหรือย้ายสัตว์อัตโนมัติ
 
 อัปเดตฐานข้อมูลเดิมตามผังล่าสุดด้วย `supabase/update-kennel-layout.sql` สคริปต์แก้เฉพาะรายการกรง เพิ่ม D2-A16 และนำ 6 รหัสที่ยกเลิกออก โดยไม่เปลี่ยนข้อมูลสัตว์หรือประวัติ
+
+## ล้างข้อมูลโดยเจ้าของ Admin
+
+ในเมนูบัญชีมีปุ่มล้างข้อมูลทั้งหมดเฉพาะ north2585456@gmail.com ที่มี role admin และ active ระบบให้กรอกอีเมล รหัสผ่านเดิม และพิมพ์ “ล้างข้อมูลทั้งหมด” ทุกครั้ง ตรวจรหัสผ่านซ้ำบน Supabase Edge Function โดยไม่เก็บหรือเขียนรหัสผ่านลง log บัญชีอื่นและการเรียก RPC ตรงจากเบราว์เซอร์ไม่มีสิทธิ์ล้าง
+
+ล้าง care_tasks, care_animals (รวมยา/ขน/เล็บ/หู/ข้อสังเกต), care_events และ care_audit snapshot ในธุรกรรมเดียว เก็บ care_members, Auth users, care_kennels และเพิ่ม revision เพื่อปฏิเสธการเขียนจากข้อมูลเก่า เก็บเฉพาะผู้ล้าง เวลา และจำนวนรายการใน care_reset_log ไม่มีข้อมูลสัตว์ที่ล้างแล้ว ไฟล์สำรองภายนอกไม่ได้ถูกลบ
+
+ติดตั้งส่วนเซิร์ฟเวอร์ด้วย supabase/admin-reset.sql และ deploy supabase/functions/care-admin-reset/index.ts พร้อม verify_jwt=true ใช้ SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY จาก environment ของ Supabase เท่านั้น ห้ามนำ service role key ใส่ dist หรือ GitHub ใช้การตรวจบัญชี active/admin ทั้ง Edge Function และ SQL
+
+ทดสอบด้วย node check-admin-reset.cjs ครอบคลุมการยืนยันรหัสผ่าน สิทธิ์ผู้ใช้ บัญชีผิด ความขัดแย้ง และการไม่เปลี่ยนข้อมูลฝั่งหน้าเว็บเมื่อผิดพลาด การติดตั้งครั้งนี้ไม่สั่งล้างข้อมูลจริง

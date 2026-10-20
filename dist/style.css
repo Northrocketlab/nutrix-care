@@ -22,3 +22,5 @@
 .cloud-login{max-width:440px;margin:25px auto}.cloud-login .field{margin:18px 0}.cloud-login .primary{margin-top:12px}.prototype{flex-wrap:wrap}.text-link svg,.secondary svg{width:17px;height:17px;flex-shrink:0}
 
 .kennel-animal-entry{display:grid;gap:8px}.monthly-note{width:100%;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.section-title-resolved{margin-top:22px}.section-title-resolved summary{padding:15px 0;cursor:pointer}
+
+.admin-reset-submit{background:#9b2c2c;border-color:#9b2c2c}.admin-reset-submit:hover{background:#7f2020}

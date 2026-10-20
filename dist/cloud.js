@@ -29,6 +29,24 @@
    if(error)throw Error(Cloud.message(error));Cloud.accept(data);return data.state;
   }catch(e){Cloud.error=e.message;throw e;}finally{Cloud.busy=false;Cloud.onStatus?.();}
  };
+ Cloud.canReset=()=>Cloud.enabled&&Cloud.ready&&Cloud.member?.role==='admin'&&Cloud.member?.email?.toLowerCase()==='north2585456@gmail.com';
+ Cloud.resetAll=async({email,password,confirmation})=>{
+  if(!Cloud.canReset())throw Error('ใช้ได้เฉพาะบัญชีผู้ดูแลเจ้าของระบบ');
+  if(Cloud.busy)throw Error('กำลังบันทึก กรุณารอสักครู่');
+  Cloud.busy=true;Cloud.onStatus?.();
+  try{
+   const {data,error}=await Cloud.client.functions.invoke('care-admin-reset',{body:{email,password,confirmation,expected_revision:Cloud.revision}});
+   if(error){let code='CARE_RESET_FAILED';try{code=(await error.context.json()).error||code;}catch{}
+    if(code==='CARE_REAUTH_FAILED')throw Error('อีเมลหรือรหัสผ่านสำหรับยืนยันไม่ถูกต้อง');
+    if(code==='CARE_LOGIN_REQUIRED')throw Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+    if(code==='CARE_INVALID_REQUEST')throw Error('กรุณาตรวจอีเมล รหัสผ่าน และข้อความยืนยัน');
+    if(code==='CARE_RESET_FAILED')throw Error('ยังยืนยันการล้างไม่ได้ กรุณาปิดหน้าต่างและอัปเดตข้อมูลก่อนลองใหม่');
+    throw Error(Cloud.message({message:code}));
+   }
+   if(!data?.state||!Number.isSafeInteger(data.revision)||!data.member)throw Error('ยังยืนยันผลการล้างไม่ได้ กรุณาอัปเดตข้อมูล');
+   Cloud.accept(data);return data.state;
+  }finally{password='';Cloud.busy=false;Cloud.onStatus?.();}
+ };
  Cloud.signIn=async(email,password)=>{
   const {error}=await Cloud.client.auth.signInWithPassword({email,password});
   if(error)throw Error(Cloud.message(error));
