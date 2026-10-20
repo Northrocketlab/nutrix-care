@@ -2,6 +2,31 @@
  'use strict';
  const config=root.CARE_CLOUD_CONFIG||{};
  const Cloud={enabled:config.enabled===true,ready:false,busy:false,member:null,revision:null,error:'',client:null,onChange:null};
+ const authStorageKey='sb-mtbvayknooxhdfrbranc-auth-token';
+ const rememberKey='nutrix-care-remember-session-v1';
+ const authKeys=[authStorageKey,authStorageKey+'-code-verifier',authStorageKey+'-user'];
+ Cloud.remember=false;
+ try{Cloud.remember=root.localStorage?.getItem(rememberKey)==='true';}catch{}
+ Cloud.authStorage={
+  getItem:key=>(Cloud.remember?root.localStorage:root.sessionStorage).getItem(key),
+  setItem:(key,value)=>{(Cloud.remember?root.localStorage:root.sessionStorage).setItem(key,value);(Cloud.remember?root.sessionStorage:root.localStorage).removeItem(key);},
+  removeItem:key=>{root.localStorage.removeItem(key);root.sessionStorage.removeItem(key);}
+ };
+ Cloud.setRememberSession=value=>{
+  const next=value===true;
+  try{
+   if(next)root.localStorage.setItem(rememberKey,'true');else root.localStorage.removeItem(rememberKey);
+   const other=next?root.sessionStorage:root.localStorage;
+   for(const key of authKeys)other.removeItem(key);
+   if(next!==Cloud.remember){const selected=next?root.localStorage:root.sessionStorage;for(const key of authKeys)selected.removeItem(key);}
+   Cloud.remember=next;
+  }catch{throw Error('บันทึกตัวเลือกการเข้าสู่ระบบไม่ได้ กรุณาตรวจการอนุญาตจัดเก็บข้อมูลของเบราว์เซอร์');}
+ };
+ Cloud.clearSavedSession=()=>{
+  for(const storageName of ['localStorage','sessionStorage'])try{for(const key of authKeys)root[storageName]?.removeItem(key);}catch{}
+  try{root.localStorage?.removeItem(rememberKey);}catch{}
+  Cloud.remember=false;
+ };
  Cloud.message=e=>{
   const m=e?.message||String(e);
   if(m.includes('CARE_FORBIDDEN'))return 'บัญชีนี้ยังไม่ได้รับสิทธิ์ หรือยังไม่ได้ยืนยันอีเมล กรุณาติดต่อผู้ดูแล';
@@ -48,7 +73,8 @@
    Cloud.accept(data);return data.state;
   }finally{password='';Cloud.busy=false;Cloud.onStatus?.();}
  };
- Cloud.signIn=async(email,password)=>{
+ Cloud.signIn=async(email,password,remember=false)=>{
+  Cloud.setRememberSession(remember);
   const {error}=await Cloud.client.auth.signInWithPassword({email,password});
   if(error)throw Error(Cloud.message(error));
   try{await Cloud.read(true);}catch(e){throw Error(Cloud.message(e));}
@@ -56,19 +82,19 @@
  Cloud.signOut=async()=>{
   if(Cloud.busy)throw Error('รอให้บันทึกเสร็จก่อนออกจากระบบ');
   const {error}=await Cloud.client.auth.signOut();if(error)throw Error(Cloud.message(error));
-  Cloud.ready=false;Cloud.member=null;Cloud.revision=null;Cloud.error='';Cloud.onChange?.(null);Cloud.onStatus?.();
+  Cloud.clearSavedSession();Cloud.ready=false;Cloud.member=null;Cloud.revision=null;Cloud.error='';Cloud.onChange?.(null);Cloud.onStatus?.();
  };
  Cloud.init=async({onChange,onStatus,canRefresh})=>{
   if(!Cloud.enabled)return;
   Cloud.onChange=onChange;Cloud.onStatus=onStatus;Cloud.canRefresh=canRefresh;
   if(!root.supabase){Cloud.error='โหลดระบบล็อกอินไม่ได้ กรุณารีเฟรชหน้าเว็บ';onStatus();return;}
-  // Browser session only. Animal records are never cached into the old demo key.
-  Cloud.client=root.supabase.createClient(config.url,config.key,{auth:{storage:sessionStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  // Only the auth session is stored here; passwords and animal records are not cached.
+  Cloud.client=root.supabase.createClient(config.url,config.key,{auth:{storage:Cloud.authStorage,storageKey:authStorageKey,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   const {data,error}=await Cloud.client.auth.getSession();
   if(error)Cloud.error=Cloud.message(error);
   if(data?.session){try{await Cloud.read(true);}catch(e){Cloud.error=Cloud.message(e);}}
   onStatus();
-  Cloud.client.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){Cloud.ready=false;Cloud.member=null;Cloud.revision=null;onChange(null);onStatus();}});
+  Cloud.client.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){Cloud.clearSavedSession();Cloud.ready=false;Cloud.member=null;Cloud.revision=null;onChange(null);onStatus();}});
   setInterval(()=>{if(Cloud.ready&&!document.hidden)Cloud.read().catch(()=>{});},10000);
   document.addEventListener('visibilitychange',()=>{if(Cloud.ready&&!document.hidden)Cloud.read().catch(()=>{});});
  };

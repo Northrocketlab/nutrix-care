@@ -125,7 +125,7 @@ view=navs.some(n=>n[0]===location.hash.slice(1))?location.hash.slice(1):'map';re
 
 function renderCloudLogin(){
  $('#desktop-nav').innerHTML='';$('#mobile-nav').innerHTML='';$('#page-name').textContent='เข้าสู่ระบบ';$('#operator-label').textContent='เข้าสู่ระบบ';
- $('#main').innerHTML=`<section class="card panel-pad cloud-login"><h1>Nutrix Care</h1><p class="subtitle">เข้าสู่ระบบเพื่อใช้ข้อมูลร่วมกันในศูนย์</p><form id="cloud-login"><div class="error" role="alert">${esc(cloud.error)}</div><label class="field">อีเมล<input name="email" type="email" autocomplete="username" required></label><label class="field">รหัสผ่าน<input name="password" type="password" autocomplete="current-password" required></label><button class="primary full" type="submit">เข้าสู่ระบบ</button></form><p class="side-copy">ใช้บัญชีที่ผู้ดูแลสร้างให้ หากยังไม่มีบัญชีหรือจำรหัสผ่านไม่ได้ กรุณาติดต่อผู้ดูแล</p><button class="text-link" id="export-legacy">ส่งออกข้อมูลเดิมในเครื่องนี้</button></section>`;
+ $('#main').innerHTML=`<section class="card panel-pad cloud-login"><h1>Nutrix Care</h1><p class="subtitle">เข้าสู่ระบบเพื่อใช้ข้อมูลร่วมกันในศูนย์</p><form id="cloud-login"><div class="error" role="alert">${esc(cloud.error)}</div><label class="field">อีเมล<input name="email" type="email" autocomplete="username" required></label><label class="field">รหัสผ่าน<input name="password" type="password" autocomplete="current-password" required></label><label class="remember-login"><input name="remember" type="checkbox" ${cloud.remember?'checked':''}><span>ล็อกอินค้างไว้</span></label><button class="primary full" type="submit">เข้าสู่ระบบ</button></form><p class="side-copy">ใช้บัญชีที่ผู้ดูแลสร้างให้ หากยังไม่มีบัญชีหรือจำรหัสผ่านไม่ได้ กรุณาติดต่อผู้ดูแล</p><button class="text-link" id="export-legacy">ส่งออกข้อมูลเดิมในเครื่องนี้</button></section>`;
 }
 function cloudStatus(){
  if(!cloud.enabled)return;
@@ -154,7 +154,7 @@ document.addEventListener('submit',async e=>{
  finally{password='';form.querySelectorAll('button').forEach(b=>b.disabled=false);}
 });
 let pendingImport=null;
-document.addEventListener('submit',async e=>{if(e.target.id!=='cloud-login')return;e.preventDefault();const form=e.target,button=form.querySelector('button');if(button.disabled)return;button.disabled=true;const values=new FormData(form);try{await cloud.signIn(String(values.get('email')).trim(),String(values.get('password')));form.reset();render();cloudStatus();}catch(err){cloud.error=err.message;cloudStatus();}finally{button.disabled=false;}});
+document.addEventListener('submit',async e=>{if(e.target.id!=='cloud-login')return;e.preventDefault();const form=e.target,button=form.querySelector('button');if(button.disabled)return;button.disabled=true;const values=new FormData(form);try{await cloud.signIn(String(values.get('email')).trim(),String(values.get('password')),values.get('remember')==='on');form.reset();render();cloudStatus();}catch(err){cloud.error=err.message;cloudStatus();}finally{button.disabled=false;}});
 document.addEventListener('click',async e=>{
  if(e.target.closest('#export-legacy')){exportLegacy();return;}
  const action=e.target.closest('[data-cloud]')?.dataset.cloud;if(!action)return;

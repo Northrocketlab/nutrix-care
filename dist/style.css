@@ -24,3 +24,5 @@
 .kennel-animal-entry{display:grid;gap:8px}.monthly-note{width:100%;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.section-title-resolved{margin-top:22px}.section-title-resolved summary{padding:15px 0;cursor:pointer}
 
 .admin-reset-submit{background:#9b2c2c;border-color:#9b2c2c}.admin-reset-submit:hover{background:#7f2020}
+
+.remember-login{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px;cursor:pointer}.remember-login input[type="checkbox"]{width:20px;height:20px;min-height:20px;margin:0;accent-color:var(--green);flex-shrink:0}
