@@ -25,10 +25,10 @@ begin
  select revision into current_revision from public.care_revision where id=1 for update;
  if current_revision is distinct from expected_revision then raise exception 'CARE_CONFLICT' using errcode='40001'; end if;
  counts:=jsonb_build_object('animals',(select count(*) from public.care_animals),'tasks',(select count(*) from public.care_tasks),'events',(select count(*) from public.care_events),'auditSnapshots',(select count(*) from public.care_audit));
- delete from public.care_tasks;
- delete from public.care_animals;
- delete from public.care_events;
- delete from public.care_audit;
+ delete from public.care_tasks where id in (select id from public.care_tasks);
+ delete from public.care_animals where id in (select id from public.care_animals);
+ delete from public.care_events where id in (select id from public.care_events);
+ delete from public.care_audit where revision <= current_revision;
  update public.care_revision set revision=current_revision+1 where id=1;
  insert into public.care_reset_log(actor,previous_revision,new_revision,deleted_counts) values(actor_uid,current_revision,current_revision+1,counts);
  return jsonb_build_object('revision',current_revision+1,'member',jsonb_build_object('uid',actor_uid,'email','north2585456@gmail.com','name',member_name,'role','admin'),'state',jsonb_build_object('version',1,'operator',member_name,'animals','[]'::jsonb,'tasks','[]'::jsonb,'events','[]'::jsonb));
