@@ -16,10 +16,17 @@
   }
   function seed(){return {version:1,operator:'',animals:[{id:'DSTF56-17',name:'Sunny',species:'สุนัข',breed:'Shih Tsu',sex:'Female',birth:'2012-08-01',stage:'Senior',kennel:'D1-A01',status:'ยังไม่ประเมิน',symptoms:'',medications:[],notes:[],checks:[],placementExample:true}],tasks:[],events:[]};}
   function validateAnimal(a,animals,editing=false){
-    if(!a.id.trim()||!a.name.trim())throw Error('กรุณากรอกรหัสและชื่อสัตว์');
+    if(!a.name?.trim())throw Error('กรุณากรอกชื่อสัตว์');
+    if(!a.id?.trim())throw Error('ไม่พบรหัสอ้างอิงของสัตว์ กรุณาลองเพิ่มใหม่');
     if(!editing&&animals.some(x=>x.id.toLowerCase()===a.id.trim().toLowerCase()))throw Error('รหัสสัตว์นี้มีอยู่แล้ว');
     if(a.birth&&(!/^\d{4}-\d{2}-\d{2}$/.test(a.birth)||a.birth>bangkokDate()))throw Error('วันเกิดต้องไม่เป็นวันที่ในอนาคต');
     if(!kennels.includes(a.kennel))throw Error('กรุณาเลือกกรงในอาคารที่เปิดใช้งาน');
+  }
+  function createAnimal(data,animals){
+    const id=data.id?.trim()||'AUTO-'+root.crypto.randomUUID();
+    const animal={id,name:data.name?.trim()||'',species:'สุนัข',breed:data.breed||'',sex:data.sex||'ไม่ระบุ',birth:data.birth||'',stage:data.stage||'ไม่ระบุ',kennel:data.kennel,status:data.status||'ยังไม่ประเมิน',symptoms:'',medications:[],checks:[],notes:[],placementExample:false};
+    validateAnimal(animal,animals);
+    return animal;
   }
   function moveAnimal(a,destination){if(!kennels.includes(destination))throw Error('ไม่พบคอกปลายทาง');if(destination===a.kennel)throw Error('สัตว์อยู่ในคอกนี้แล้ว');const from=a.kennel;a.kennel=destination;a.placementExample=false;return from;}
   function hasMonthlyIssue(check){return Boolean(check&&((check.coat&&check.coat!=='ปกติ')||(check.nails&&check.nails!=='เหมาะสม')||(check.ears&&check.ears!=='สะอาด')));}
@@ -31,6 +38,6 @@
     if(!hasMonthlyIssue(data)&&!hasMonthlyIssue(previous))throw Error('บันทึกเฉพาะตัวที่พบปัญหา กรุณาเลือกปัญหาอย่างน้อยหนึ่งรายการ');
     animal.checks.push({month:data.month,coat:data.coat,nails:data.nails,ears:data.ears,note:data.note||'',operator,time,problemOnly:true});
   }
-  const api={buildings,layoutFor,kennelsFor,kennels,bangkokDate,age,seed,validateAnimal,moveAnimal,hasMonthlyIssue,addMonthlyCheck};
+  const api={buildings,layoutFor,kennelsFor,kennels,bangkokDate,age,seed,validateAnimal,createAnimal,moveAnimal,hasMonthlyIssue,addMonthlyCheck};
   root.Care=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -33,3 +33,15 @@ assert.throws(()=>C.moveAnimal(sunny,'D5-A11'),/ปลายทาง/);
 assert.throws(()=>C.moveAnimal(sunny,'D1-A15'),/ปลายทาง/);
 for(const file of ['app.js','model.js','site-map.js'])new vm.Script(fs.readFileSync('dist/'+file,'utf8'),{filename:file});
 console.log('PASS: 156 unique kennels across buildings 1–6, cross-building moves retain history, clinic single row included, age, validation and syntax.');
+
+// Optional registration codes still need stable, distinct IDs for history and tasks.
+const namedOnly=C.createAnimal({name:'  ชื่อซ้ำ  ',kennel:'D1-A01'},state.animals);
+const sameName=C.createAnimal({id:'  ',name:'ชื่อซ้ำ',kennel:'D1-A01'},[...state.animals,namedOnly]);
+assert.equal(namedOnly.name,'ชื่อซ้ำ');assert.match(namedOnly.id,/^AUTO-/);
+assert.notEqual(namedOnly.id,sameName.id);assert.ok(namedOnly.id.length<=60);
+assert.equal(C.createAnimal({id:'  NEW-17  ',name:'มีรหัส',kennel:'D1-A01'},state.animals).id,'NEW-17');
+assert.throws(()=>C.createAnimal({id:'dstf56-17',name:'ซ้ำ',kennel:'D1-A01'},state.animals),/มีอยู่แล้ว/);
+assert.throws(()=>C.createAnimal({name:'   ',kennel:'D1-A01'},state.animals),/ชื่อสัตว์/);
+const stableId=namedOnly.id;namedOnly.notes.push({text:'ประวัติเดิม'});C.moveAnimal(namedOnly,'D2-A01');
+assert.equal(namedOnly.id,stableId);assert.equal(namedOnly.notes[0].text,'ประวัติเดิม');
+console.log('PASS: name-only entry, unique automatic IDs for duplicate names, manual-code validation and stable history after moves.');
