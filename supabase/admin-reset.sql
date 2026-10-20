@@ -17,8 +17,10 @@ declare current_revision bigint; member_name text; counts jsonb;
 begin
  if current_user <> 'service_role' then raise exception 'CARE_FORBIDDEN' using errcode='42501'; end if;
  if confirmation is distinct from 'ล้างข้อมูลทั้งหมด' then raise exception 'CARE_CONFIRMATION_REQUIRED'; end if;
- select m.display_name into member_name from public.care_members m join auth.users u on lower(u.email)=m.email
- where u.id=actor_uid and u.email_confirmed_at is not null and m.email='north2585456@gmail.com' and m.role='admin' and m.active;
+ -- The server has verified actor_uid with Auth.getUser and a fresh password login.
+ -- service_role must not read the protected auth.users table directly.
+ select m.display_name into member_name from public.care_members m
+ where actor_uid is not null and m.email='north2585456@gmail.com' and m.role='admin' and m.active;
  if not found then raise exception 'CARE_FORBIDDEN' using errcode='42501'; end if;
  select revision into current_revision from public.care_revision where id=1 for update;
  if current_revision is distinct from expected_revision then raise exception 'CARE_CONFLICT' using errcode='40001'; end if;

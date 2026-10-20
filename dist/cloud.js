@@ -40,7 +40,8 @@
     if(code==='CARE_REAUTH_FAILED')throw Error('อีเมลหรือรหัสผ่านสำหรับยืนยันไม่ถูกต้อง');
     if(code==='CARE_LOGIN_REQUIRED')throw Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     if(code==='CARE_INVALID_REQUEST')throw Error('กรุณาตรวจอีเมล รหัสผ่าน และข้อความยืนยัน');
-    if(code==='CARE_RESET_FAILED')throw Error('ยังยืนยันการล้างไม่ได้ กรุณาปิดหน้าต่างและอัปเดตข้อมูลก่อนลองใหม่');
+    if(code==='CARE_CONFLICT')throw Error('ข้อมูลมีการเปลี่ยนแปลง กรุณาปิดหน้าต่าง อัปเดตข้อมูล แล้วลองใหม่');
+    if(code==='CARE_RESET_FAILED')throw Error('ระบบล้างข้อมูลขัดข้อง ยังยืนยันผลไม่ได้ กรุณาตรวจข้อมูลล่าสุด');
     throw Error(Cloud.message({message:code}));
    }
    if(!data?.state||!Number.isSafeInteger(data.revision)||!data.member)throw Error('ยังยืนยันผลการล้างไม่ได้ กรุณาอัปเดตข้อมูล');

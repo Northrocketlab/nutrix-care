@@ -31,7 +31,7 @@ export function createResetHandler({createClient,url,anonKey,serviceKey}){
    body.password='';
    if(passwordError||verified?.user?.id!==user.id)return respond(401,{error:'CARE_REAUTH_FAILED'});
    const {data,error}=await admin.rpc('care_admin_reset',{actor_uid:user.id,expected_revision:body.expected_revision,confirmation:body.confirmation});
-   if(error){if(error.message?.includes('CARE_CONFLICT'))return respond(409,{error:'CARE_CONFLICT'});if(error.message?.includes('CARE_FORBIDDEN'))return respond(403,{error:'CARE_FORBIDDEN'});return respond(500,{error:'CARE_RESET_FAILED'});}
+   if(error){console.error('care-admin-reset database error code:',error.code||'unknown');if(error.message?.includes('CARE_CONFLICT'))return respond(409,{error:'CARE_CONFLICT'});if(error.message?.includes('CARE_FORBIDDEN'))return respond(403,{error:'CARE_FORBIDDEN'});return respond(500,{error:'CARE_RESET_FAILED'});}
    return respond(200,data);
   }catch{return respond(400,{error:'CARE_RESET_FAILED'});}
   finally{if(passwordClient)try{await passwordClient.auth.signOut({scope:'local'});}catch{}}
