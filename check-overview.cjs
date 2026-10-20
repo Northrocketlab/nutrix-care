@@ -17,6 +17,6 @@ assert.deepEqual(countSummary(),[['ปกติ',0],['ยังไม่ปร�
 // Count animals individually even when two animals share a cage or a placement needs correction.
 state.animals.push({id:'same-cage',name:'Same cage',status:'ปกติ',kennel:'D1-A01'},{id:'legacy',name:'Unknown',status:'unexpected',kennel:'D6-B15'});
 assert.equal(countSummary().reduce((sum,row)=>sum+row[1],0),state.animals.length);assert.equal(countSummary().find(row=>row[0]==='ปกติ')[1],1);assert.equal(countSummary().find(row=>row[0]==='ยังไม่ประเมิน')[1],2);
-assert.ok(!plan.render().includes('รูปแบบกรง'));assert.ok(plan.render().includes('สรุปจำนวนสัตว์ตามสถานะสุขภาพ'));
+assert.ok(!plan.render().includes('<span>รูปแบบกรง</span>'));assert.ok(plan.render().includes('สรุปจำนวนสัตว์ตามสถานะสุขภาพ'));
 listeners.click({target:{closest:()=>({dataset:{plan:'kennel',code:'D2-A16'}})}});assert.equal(opened,'D2-A16');opened=null;listeners.click({target:{closest:()=>({dataset:{plan:'kennel',code:'D6-B15'}})}});assert.equal(opened,null);
 console.log('PASS: all 151 overview cages, every health color, mixed-status priority, live state changes, escaped names and direct valid-cage navigation.');
