@@ -4,6 +4,7 @@ const state={animals:[]};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ctx={Care,state,esc,tag:x=>String(x),document:{addEventListener:(name,fn)=>listeners[name]=fn},openKennel:code=>opened=code};vm.createContext(ctx);vm.runInContext(fs.readFileSync('dist/site-map.js','utf8')+'\nglobalThis.plan=SitePlan;',ctx);const plan=ctx.plan;
 const svg=plan.svg(),codes=[...svg.matchAll(/data-code="([^"]+)"/g)].map(m=>m[1]);assert.equal(codes.length,151);assert.equal(new Set(codes).size,151);assert.deepEqual([...codes].sort(),[...Care.kennels].sort());
+assert.equal((plan.healthSummary().match(/<b>0 ตัว<\/b>/g)||[]).length,5);
 const statuses=['ปกติ','ยังไม่ประเมิน','เฝ้าระวัง','อยู่ระหว่างดูแลรักษา','แยกดูแล'];
 for(const [i,status] of statuses.entries())state.animals.push({id:'test-'+i,name:'สัตว์ทดสอบ '+i,status,kennel:'D1-A0'+(i+1)});
 for(const [i,status] of statuses.entries()){const code='D1-A0'+(i+1);const cell=plan.svg().match(new RegExp('<g class="overview-cage"[^>]*data-code="'+code+'"[\\s\\S]*?</g>'))[0];assert.ok(cell.includes('data-status="'+status+'"'));assert.ok(cell.includes('fill:'+plan.healthColors.find(h=>h.status===status).color));}
@@ -11,5 +12,11 @@ assert.equal(plan.cageHealth([]).status,'กรงว่าง');assert.equal(pl
 state.animals[0].status='แยกดูแล';state.animals[0].name='<script>alert("test")</script>';
 const updated=plan.svg();assert.ok(updated.includes('data-code="D1-A01" data-status="แยกดูแล"'));assert.ok(!updated.includes('<script>'));assert.ok(updated.includes('&lt;script&gt;'));
 const before=JSON.stringify(state);plan.render();assert.equal(JSON.stringify(state),before);
+const countSummary=()=>[...plan.healthSummary().matchAll(/data-health-status="([^"]+)"[\s\S]*?<b>(\d+) ตัว<\/b>/g)].map(m=>[m[1],Number(m[2])]);
+assert.deepEqual(countSummary(),[['ปกติ',0],['ยังไม่ประเมิน',1],['เฝ้าระวัง',1],['อยู่ระหว่างดูแลรักษา',1],['แยกดูแล',2]]);
+// Count animals individually even when two animals share a cage or a placement needs correction.
+state.animals.push({id:'same-cage',name:'Same cage',status:'ปกติ',kennel:'D1-A01'},{id:'legacy',name:'Unknown',status:'unexpected',kennel:'D6-B15'});
+assert.equal(countSummary().reduce((sum,row)=>sum+row[1],0),state.animals.length);assert.equal(countSummary().find(row=>row[0]==='ปกติ')[1],1);assert.equal(countSummary().find(row=>row[0]==='ยังไม่ประเมิน')[1],2);
+assert.ok(!plan.render().includes('รูปแบบกรง'));assert.ok(plan.render().includes('สรุปจำนวนสัตว์ตามสถานะสุขภาพ'));
 listeners.click({target:{closest:()=>({dataset:{plan:'kennel',code:'D2-A16'}})}});assert.equal(opened,'D2-A16');opened=null;listeners.click({target:{closest:()=>({dataset:{plan:'kennel',code:'D6-B15'}})}});assert.equal(opened,null);
 console.log('PASS: all 151 overview cages, every health color, mixed-status priority, live state changes, escaped names and direct valid-cage navigation.');
