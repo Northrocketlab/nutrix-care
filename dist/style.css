@@ -33,3 +33,5 @@
 
 /* Keep the supplied mascot fully visible on the white sidebar. */
 .brand img.brand-icon{display:block;object-fit:contain;background:transparent;border-radius:0}
+
+.animal-filters{flex-wrap:wrap;margin-bottom:8px}.animal-filters input{flex:2 1 260px;max-width:none}.animal-filters select{flex:1 1 180px;width:auto;min-width:0}.animal-result-count{margin:0 0 16px}@media(max-width:600px){.animal-filters input,.animal-filters select{flex-basis:100%;width:100%}}
