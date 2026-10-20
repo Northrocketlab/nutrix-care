@@ -16,9 +16,8 @@ insert into public.care_revision(id) values(1) on conflict do nothing;
 create table if not exists public.care_kennels(code text primary key);
 insert into public.care_kennels(code)
 select 'D'||b||'-'||r||lpad(n::text,2,'0')
-from generate_series(1,6) b
-cross join lateral unnest(case when b=5 then array['A'] else array['A','B'] end) r
-cross join lateral generate_series(1,case when b in(1,3) then 14 when b=5 then 10 else 15 end) n
+from (values(1,'A',14),(1,'B',14),(2,'A',16),(2,'B',14),(3,'A',14),(3,'B',14),(4,'A',14),(4,'B',15),(5,'A',10),(6,'A',13),(6,'B',13)) layout(b,r,total)
+cross join lateral generate_series(1,total) n
 on conflict do nothing;
 create table if not exists public.care_animals (
  id text primary key, payload jsonb not null, updated_by uuid references auth.users(id),

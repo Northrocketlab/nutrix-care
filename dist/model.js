@@ -1,7 +1,7 @@
 (function(root){
   const buildings=[1,2,3,4,5,6];
-  const layoutFor=building=>({1:{rows:['A','B'],perRow:14},2:{rows:['A','B'],perRow:15},3:{rows:['A','B'],perRow:14},4:{rows:['A','B'],perRow:15},5:{rows:['A'],perRow:10},6:{rows:['A','B'],perRow:15}}[Number(building)]);
-  const kennelsFor=building=>{const layout=layoutFor(building);return layout?layout.rows.flatMap(row=>Array.from({length:layout.perRow},(_,i)=>`D${Number(building)}-${row}${String(i+1).padStart(2,'0')}`)):[];};
+  const layoutFor=building=>({1:{rows:['A','B'],counts:{A:14,B:14}},2:{rows:['A','B'],counts:{A:16,B:14}},3:{rows:['A','B'],counts:{A:14,B:14}},4:{rows:['A','B'],counts:{A:14,B:15}},5:{rows:['A'],counts:{A:10}},6:{rows:['A','B'],counts:{A:13,B:13}}}[Number(building)]);
+  const kennelsFor=building=>{const layout=layoutFor(building);return layout?layout.rows.flatMap(row=>Array.from({length:layout.counts[row]},(_,i)=>`D${Number(building)}-${row}${String(i+1).padStart(2,'0')}`)):[];};
   const kennels=buildings.flatMap(kennelsFor);
   function bangkokDate(now=new Date()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);}
   function age(birth,today=bangkokDate()){
