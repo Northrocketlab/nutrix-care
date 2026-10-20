@@ -87,7 +87,36 @@ function moveForm(id){const a=findAnimal(id);formOpen('ย้ายคอก · 
 function healthForm(id){const a=findAnimal(id);formOpen('อัปเดตสุขภาพ · '+a.name,'health',select('สถานะสุขภาพ','status',statuses,a.status,true,true)+textarea('อาการที่ต้องสังเกตต่อ','symptoms',a.symptoms),{id,back:id,note:'บันทึกข้อสังเกตตามข้อมูลที่มี ระบบไม่วินิจฉัยหรือแนะนำการรักษา'});}
 function medForm(id){formOpen('เพิ่มรายการยา · '+findAnimal(id).name,'med',input('ชื่อยา *','name','','text','required maxlength="160"',true)+input('ขนาดและหน่วยตามรายการ *','dose','','text','required maxlength="120"')+input('ความถี่ / เวลาตามรายการ *','frequency','','text','required maxlength="200"')+input('วันเริ่ม *','start',Care.bangkokDate(),'date','required')+input('วันสิ้นสุดตามแผน (ถ้ามี)','end','','date')+textarea('วิธีให้ยา / คำสั่งเพิ่มเติม','instructions'),{id,back:id,note:'คัดลอกตามรายการที่ได้รับ ไม่คำนวณขนาดยาอัตโนมัติ • การเพิ่มรายการนี้ยังไม่ใช่บันทึกว่าได้ให้ยาแล้ว'});}
 function checkForm(id,month){const a=findAnimal(id),c=latestCheck(a,month);formOpen('บันทึกปัญหาขน เล็บ หู · '+a.name,'check',input('เดือนที่ตรวจ *','month',month,'month',`required max="${currentMonth()}"`,true)+select('สภาพขน *','coat',['','ปกติ','พันกัน / ต้องแปรง','สกปรก / ต้องทำความสะอาด','มีข้อสังเกตอื่น'],c?.coat||'ปกติ',true,true)+select('ความยาวเล็บ *','nails',['','เหมาะสม','ยาว / ต้องตัด','มีข้อสังเกตอื่น'],c?.nails||'เหมาะสม',true,true)+select('ความสะอาดหู *','ears',['','สะอาด','ต้องทำความสะอาด','มีข้อสังเกตอื่น'],c?.ears||'สะอาด',true,true)+textarea('รายละเอียดและสิ่งที่ต้องทำต่อ','note',c?.note||''),{id,back:id,intro:`<div class="notice">เปลี่ยนเฉพาะหัวข้อที่พบปัญหา แล้วกดบันทึก ข้อมูลจะถูกบันทึกเฉพาะสัตว์ตัวนี้${Care.hasMonthlyIssue(c)?' • ถ้าแก้ไขแล้ว ให้เลือกปกติ / เหมาะสม / สะอาด เพื่อปิดรายการติดตาม โดยประวัติเดิมยังอยู่':''}</div>`,note:'ผลตรวจไม่สร้างงานให้อัตโนมัติ หากต้องทำต่อให้เพิ่มใน “งานดูแล”'});}
-function taskForm(id){if(!state.animals.length){toast('เพิ่มสัตว์ก่อนสร้างงาน');return;}formOpen('เพิ่มงานดูแล','task',`<label class="field wide">สัตว์ *<select name="animalId" required>${state.animals.map(a=>`<option value="${esc(a.id)}" ${a.id===id?'selected':''}>${esc(a.name)} · ${esc(Care.animalCode(a)||'ไม่ระบุรหัส')}</option>`).join('')}</select></label>`+input('สิ่งที่ต้องทำ *','title','','text','required maxlength="300"',true)+input('วันที่ต้องทำ *','due',Care.bangkokDate(),'date','required')+input('ผู้รับผิดชอบ','assignee','','text','maxlength="80"'),{back:id,note:'หากมีเวลาเฉพาะ เช่น 08:00 ให้ใส่ในข้อความสิ่งที่ต้องทำ'});}
+function taskAnimalLabel(a){return `${a.name} · ${Care.animalCode(a)||'ไม่ระบุรหัส'} · ${a.kennel}`;}
+function taskAnimalMatches(query){const tokens=query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);return state.animals.filter(a=>tokens.every(token=>`${taskAnimalLabel(a)} ${a.breed||''}`.toLocaleLowerCase().includes(token)));}
+function taskAnimalResults(query=''){
+ const matches=taskAnimalMatches(query);
+ return `<p class="side-copy" role="status">${matches.length?`พบ ${matches.length} ตัว${matches.length>30?' · แสดง 30 ตัวแรก กรุณาพิมพ์เพิ่มเพื่อจำกัดผลลัพธ์':''}`:'ไม่พบสัตว์ที่ตรงกับการค้นหา'}</p><div class="task-animal-options">${matches.slice(0,30).map(a=>`<button type="button" class="task-animal-option" data-task-animal="${esc(a.id)}">${esc(taskAnimalLabel(a))}</button>`).join('')}</div>`;
+}
+function taskForm(id){
+ if(!state.animals.length){toast('เพิ่มสัตว์ก่อนสร้างงาน');return;}
+ const selected=findAnimal(id);
+ formOpen('เพิ่มงานดูแล','task',`<div class="field wide task-animal-picker"><label for="task-animal-search">สัตว์ * (พิมพ์ค้นหาแล้วเลือก)</label><input id="task-animal-search" type="search" autocomplete="off" required placeholder="ค้นหาชื่อ รหัสสัตว์ หรือรหัสคอก" value="${esc(selected?taskAnimalLabel(selected):'')}" aria-describedby="task-animal-help"><input type="hidden" name="animalId" value="${esc(selected?.id||'')}"><p id="task-animal-help" class="side-copy">พิมพ์บางส่วนของชื่อ รหัส หรือคอก แล้วกดเลือกสัตว์จากรายการ</p><div id="task-animal-results" aria-label="ผลการค้นหาสัตว์" ${selected?'hidden':''}>${taskAnimalResults()}</div></div>`+input('สิ่งที่ต้องทำ *','title','','text','required maxlength="300"',true)+input('วันที่ต้องทำ *','due',Care.bangkokDate(),'date','required')+input('ผู้รับผิดชอบ','assignee','','text','maxlength="80"'),{back:id,note:'หากมีเวลาเฉพาะ เช่น 08:00 ให้ใส่ในข้อความสิ่งที่ต้องทำ'});
+}
+document.addEventListener('input',e=>{
+ if(e.target.id!=='task-animal-search')return;
+ const form=e.target.closest('form[data-form="task"]');if(!form)return;
+ form.querySelector('[name="animalId"]').value='';e.target.setCustomValidity('กรุณาเลือกสัตว์จากผลการค้นหา');
+ const results=form.querySelector('#task-animal-results');results.hidden=false;results.innerHTML=taskAnimalResults(e.target.value);
+});
+document.addEventListener('focusin',e=>{
+ if(e.target.id!=='task-animal-search')return;
+ const form=e.target.closest('form[data-form="task"]');if(!form)return;
+ const results=form.querySelector('#task-animal-results');results.hidden=false;results.innerHTML=taskAnimalResults(form.querySelector('[name="animalId"]').value?'':e.target.value);
+});
+document.addEventListener('click',e=>{
+ const option=e.target.closest('[data-task-animal]');if(!option)return;
+ const form=option.closest('form[data-form="task"]'),animal=findAnimal(option.dataset.taskAnimal);if(!form||!animal)return;
+ const search=form.querySelector('#task-animal-search');search.value=taskAnimalLabel(animal);search.setCustomValidity('');
+ form.querySelector('[name="animalId"]').value=animal.id;form.querySelector('#task-animal-results').hidden=true;
+ form.querySelector('[name="title"]').focus();
+});
+
 document.addEventListener('click',e=>{const el=e.target.closest('[data-action]');if(!el)return;const {action,id,code,kennel,month,med}=el.dataset;
  const actions={close:()=>{if(cloud.busy&&$('#admin-reset-form'))return;dialog.close();},'add-animal':()=>addAnimal(kennel),kennel:()=>openKennel(code),profile:()=>profile(id),'edit-animal':()=>editAnimalForm(id),move:()=>moveForm(id),health:()=>healthForm(id),'add-med':()=>medForm(id),'monthly-check':()=>checkForm(id,month),'add-task':()=>taskForm(id),'add-note':()=>formOpen('บันทึกข้อสังเกต · '+findAnimal(id).name,'note',textarea('ข้อสังเกต *','text','',true),{id,back:id}),'stop-med':()=>formOpen('บันทึกหยุดใช้ยา','stop-med',input('รายการยา','med',med,'hidden')+textarea('เหตุผล / หมายเหตุ','reason','',true),{id,back:id,intro:`<div class="notice">บันทึกเฉพาะการหยุดใช้ที่ได้รับแจ้งแล้ว ระบบจะเก็บประวัติรายการยาไว้</div>`}),'toggle-task':()=>{const t=state.tasks.find(t=>t.id===id);formOpen(t.done?'เปิดงานอีกครั้ง':'ยืนยันทำงานเสร็จ','toggle-task','',{id,intro:`<div class="profile-box" style="margin-bottom:18px">${esc(t.title)}<br>${esc(findAnimal(t.animalId)?.name||t.animalId)}</div>`});}};
  actions[action]?.();
