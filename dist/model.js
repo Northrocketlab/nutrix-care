@@ -27,16 +27,19 @@
     const code=data.id?.trim()||'';
     if(code&&animals.some(a=>animalCode(a).trim().toLowerCase()===code.toLowerCase()))throw Error('รหัสสัตว์นี้มีอยู่แล้ว');
     const id=code||'AUTO-'+root.crypto.randomUUID();
-    const animal={id,name:data.name?.trim()||'',species:'สุนัข',breed:data.breed||'',sex:data.sex||'ไม่ระบุ',birth:data.birth||'',stage:data.stage||'ไม่ระบุ',kennel:data.kennel,status:data.status||'ยังไม่ประเมิน',symptoms:'',medications:[],checks:[],notes:[],placementExample:false};
+    const animal={id,name:data.name?.trim()||'',species:'สุนัข',breed:data.breed||'',sex:data.sex||'ไม่ระบุ',birth:data.birth||'',stage:data.stage||'ไม่ระบุ',kennel:data.kennel,status:data.status||'ยังไม่ประเมิน',symptoms:'',medications:[],checks:[],notes:[],placementExample:false,registeredOn:bangkokDate(),handlingLevel:data.handlingLevel||'unknown',handlingPerson:data.handlingPerson||'',handlingNote:data.handlingNote||'',groomingRecords:[],groomingPlans:[]};
+    if(!['easy','skilled','aggressive','unknown'].includes(animal.handlingLevel))throw Error('ระดับการจับดูแลไม่ถูกต้อง');
     validateAnimal(animal,animals);
     return animal;
   }
   function updateAnimalProfile(animal,data,animals=[]){
     if(!animal)throw Error('ไม่พบสัตว์ที่ต้องการแก้ไข');
-    const labels={name:'ชื่อ',registrationCode:'รหัสสัตว์',breed:'พันธุ์',sex:'เพศ',birth:'วันเกิด',stage:'ช่วงวัย'};
+    const labels={name:'ชื่อ',registrationCode:'รหัสสัตว์',breed:'พันธุ์',sex:'เพศ',birth:'วันเกิด',stage:'ช่วงวัย',handlingLevel:'ระดับการจับดูแล',handlingPerson:'ผู้ที่จับได้',handlingNote:'ข้อควรทราบการจับ'};
     const next={...animal};
     for(const key of Object.keys(labels))if(Object.hasOwn(data,key))next[key]=String(data[key]??'').trim();
     validateAnimal(next,[],true);
+    if(next.handlingLevel&&!['easy','skilled','aggressive','unknown'].includes(next.handlingLevel))throw Error('ระดับการจับดูแลไม่ถูกต้อง');
+    if((next.handlingPerson||'').length>100||(next.handlingNote||'').length>1000)throw Error('รายละเอียดการจับดูแลยาวเกินไป');
     if(Object.hasOwn(data,'registrationCode')){
       if(next.registrationCode.length>60)throw Error('รหัสสัตว์ต้องไม่เกิน 60 ตัวอักษร');
       if(next.registrationCode&&animals.some(a=>a.id!==animal.id&&animalCode(a).trim().toLowerCase()===next.registrationCode.toLowerCase()))throw Error('รหัสสัตว์นี้มีอยู่แล้ว');

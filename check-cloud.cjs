@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('nod
 function controller(){const context={CARE_CLOUD_CONFIG:{enabled:true},document:{hidden:false},console};vm.createContext(context);vm.runInContext(fs.readFileSync('dist/cloud.js','utf8'),context);return context.CareCloud;}
 (async()=>{
  let c=controller();assert.equal(c.enabled,true);await assert.rejects(c.write({}),/ล็อกอิน/);
- const draft={version:1,animals:[],tasks:[],events:[]};
+ const draft={version:1,animals:[{id:'synthetic',handlingLevel:'skilled',groomingRecords:[{date:'2026-11-04',outcome:'completed',activities:['bath']}],groomingPlans:[{month:'2026-11',assignee:'Test'}]}],tasks:[],events:[]};
  c.ready=true;c.revision=4;c.member={name:'North'};let accepted=0;c.onChange=()=>accepted++;
  c.client={rpc:async(name,args)=>{assert.equal(name,'care_write');assert.equal(args.expected_revision,4);assert.equal(args.new_state,draft);return {data:{revision:5,member:c.member,state:draft}};}};
  await c.write(draft);assert.equal(c.revision,5);assert.equal(accepted,1);assert.equal(c.busy,false);
